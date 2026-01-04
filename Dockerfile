@@ -20,7 +20,7 @@ WORKDIR /app
 
 COPY pyproject.toml* poetry.lock* ./
 
-RUN if [ -f pyproject.toml ]; then poetry install --no-root --only main; fi
+RUN if [ -f pyproject.toml ]; then poetry install --no-root; fi
 
 COPY . .
 

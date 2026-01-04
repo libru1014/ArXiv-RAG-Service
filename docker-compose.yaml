@@ -9,8 +9,10 @@ services:
       - .env
     environment:
       - VECTOR_DB_URL=http://qdrant:6333
+      - OLLAMA_BASE_URL=http://ollama:11434
     depends_on:
       - qdrant
+      - ollama
     volumes:
       - .:/app
   
@@ -22,6 +24,14 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_storage:/qdrant/storage
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-server
+    volumes:
+      - ./models/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
 
 volumes:
   qdrant_storage:
