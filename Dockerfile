@@ -18,10 +18,10 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml* poetry.lock* ./
 
-RUN poetry install --no-root --only main
+RUN if [ -f pyproject.toml ]; then poetry install --no-root; fi
 
 COPY . .
 
-ENTRYPOINT ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,17 @@
+venv/
+.venv/
+
+.env
+.dockerignore
+
+__pycache__/
+*.py[cod]
+
+*.db
+/vector_db/
+
+.devcontainer
+/data/
+
+/models
+/db
