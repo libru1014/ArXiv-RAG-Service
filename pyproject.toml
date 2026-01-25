@@ -16,6 +16,9 @@ langchain-ollama = "^1.0.1"
 arxiv = "^2.3.1"
 pypdf = "^6.5.0"
 langchain-huggingface = "^1.2.0"
+qdrant-client = "^1.16.2"
+langchain-qdrant = "^1.1.0"
+fastembed = "^0.7.4"
 
 
 [build-system]

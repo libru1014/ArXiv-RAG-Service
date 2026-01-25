@@ -1,26 +1,81 @@
-# from langchain_text_splitters import RecursiveCharacterTextSplitter
-# from langchain_community.document_loaders import PyPDFDirectoryLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
 from app.services.ai_client import AIClient
+from app.services.vector_db import QdrantClient
 import os
 from typing import List
+import arxiv
 
 class RagService:
     def __init__(self):
         self.ai_client = None
+        self.qdrant_client = None
         self.vectordb = None
+        self.sparse_embeddings = None
+        self.dense_embeddings = None
 
-    def set_client(self, ai_client: AIClient):
+    def set_client(self, ai_client: AIClient, qdrant_client: QdrantClient):
         self.ai_client = ai_client
+        self.qdrant_client = qdrant_client
+        print("Set clients successfully.")
+
+    async def load_sparse_embeddings(self):
+        if self.sparse_embeddings is None:
+            self.sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
+            print("Load sparse embeddings function.")
+
+    async def load_dense_embeddings(self):
+        if self.dense_embeddings is None:
+            self.dense_embeddings = HuggingFaceEndpointEmbeddings(model=os.getenv("EMBED_URL", "http://embed-server:8080"))
+            print("Load dense embeddings function.")
     
-    def set_db(self):
-        embeddings = HuggingFaceEndpointEmbeddings(model=os.getenv("EMBED_URL", "http://embed-server:8080"))
-        self.vectordb = Chroma(
-            persist_directory="/app/db/chroma", embedding_function=embeddings, collection_name="arxiv_test"
+    async def set_db(self):
+        self.vectordb = QdrantVectorStore(
+            client=self.qdrant_client.client,
+            collection_name="arxiv_papers",
+            embedding=self.dense_embeddings,
+            sparse_embedding=self.sparse_embeddings,
+            retrieval_mode=RetrievalMode.HYBRID,
+            vector_name="dense",
+            sparse_vector_name="sparse"
         )
+        print("Set Database complete.")
+
+    async def add_document(self, paper_id: str):
+        arxiv_client = arxiv.Client()
+        try:
+            search = arxiv.Search(id_list=[paper_id])
+            paper = next(arxiv_client.results(search))
+            paper.download_pdf(dirpath="/app/data/pdfs", filename=f"{paper_id}.pdf")
+            print(f"Downloaded {paper_id}")
+
+            pdf_path = f"/app/data/pdfs/{paper_id}.pdf"
+            loader = PyPDFLoader(pdf_path)
+            docs = loader.load()
+            doc_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+
+            splitted_docs = doc_splitter.split_documents(docs)
+
+            chunk_size = 16
+            for i in range(0, len(splitted_docs), chunk_size):
+                batch = []
+                if i + chunk_size >= len(splitted_docs):
+                    batch = splitted_docs[i : len(splitted_docs)]
+                else:
+                    batch = splitted_docs[i : i + chunk_size]
+                    self.vectordb.add_documents(documents=batch)
+
+            if os.path.exists(pdf_path):
+                os.remove(pdf_path)
+
+        except Exception as e:
+            print(f"Error downloading {paper_id}: {e}")
+        
 
     # 문서 검색
     def retrieve(self, question: str, k: int):

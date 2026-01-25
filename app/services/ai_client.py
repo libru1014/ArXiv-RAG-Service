@@ -3,7 +3,7 @@ import os
 from typing import List
 
 EMBED_URL = os.getenv("EMBED_URL", "http://embed-server:8080")
-RERANK_URL = os.getenv("RERANK_URL", "http://rerank-server:8080")
+RERANK_URL = os.getenv("RERANK_URL", "http://rerank-server:8081")
 
 class AIClient:
     def __init__(self):
