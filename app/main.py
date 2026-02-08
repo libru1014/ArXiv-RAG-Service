@@ -37,6 +37,16 @@ async def answer(question):
 
     return {"messages": message}
 
+@app.get("/test/{question}")
+async def test(question):
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+
+    llm = ChatOllama(base_url=ollama_url, model="llama3-chatqa:8b")
+
+    message, context = await rag_service.test_response(question=question, llm=llm)
+
+    return {"messages": message, "context": context}
+
 @app.post("/add/{paper_id}", status_code=200)
 async def add(paper_id):
     try:

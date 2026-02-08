@@ -66,9 +66,12 @@ class RagService:
                 batch = []
                 if i + chunk_size >= len(splitted_docs):
                     batch = splitted_docs[i : len(splitted_docs)]
+                    self.vectordb.add_documents(documents=batch)
+                    print(f"Add batch from {i} to {len(splitted_docs) - 1}")
                 else:
                     batch = splitted_docs[i : i + chunk_size]
                     self.vectordb.add_documents(documents=batch)
+                    print(f"Add batch from {i} to {i + chunk_size - 1}")
 
             if os.path.exists(pdf_path):
                 os.remove(pdf_path)
@@ -130,3 +133,31 @@ class RagService:
         result = chain.invoke({"context": context, "question": question})
 
         return result
+    
+    async def test_response(self, question: str, llm, k = 4, top_k = 2):
+        docs = self.retrieve(question, k)
+        ranked_docs = await self.rerank(question, docs)
+
+        # 상위 top_k개 만큼의 문서만을 활용
+        context = "\n\n".join(f"<document>{ranked_docs[i]}</document>" for i in range(top_k))
+
+        prompt = PromptTemplate.from_template(
+        """You are an AI assistant specializing in QA(Question-Answering) tasks within a Retrieval-Augmented Generation(RAG) system.
+        Your mission is to answer questions based on provided context.
+        Ensure your response is concise and directly addresses the question without any additional narration.
+        If you can't find answer in provided context, just answer "I can't find answer. Sorry."
+
+        #Question:
+        {question}
+
+        #Context:
+        {context}
+
+        #Answer:"""
+        )
+
+        chain = prompt | llm | StrOutputParser()
+
+        result = chain.invoke({"context": context, "question": question})
+
+        return result, context
